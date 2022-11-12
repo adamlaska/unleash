@@ -101,7 +101,7 @@
     "js-yaml": "^4.1.0",
     "json-schema-to-ts": "^2.5.3",
     "knex": "^2.0.0",
-    "log4js": "^6.0.0",
+    "log4js": "^6.7.0",
     "make-fetch-happen": "^10.1.2",
     "memoizee": "^0.4.15",
     "mime": "^3.0.0",
