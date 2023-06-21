@@ -116,7 +116,7 @@
     "pkginfo": "^0.4.1",
     "prom-client": "^14.0.0",
     "response-time": "^2.3.2",
-    "semver": "^7.3.5",
+    "semver": "^7.5.2",
     "serve-favicon": "^2.5.0",
     "stoppable": "^1.1.0",
     "type-is": "^1.6.18",
