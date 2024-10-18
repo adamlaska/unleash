@@ -1,28 +1,17 @@
 import { validateSchema } from '../validate';
-import { FeatureSchema } from './feature-schema';
+import type { FeatureSchema } from './feature-schema';
 
 test('featureSchema', () => {
     const data: FeatureSchema = {
         name: 'a',
-        strategies: [
-            {
-                name: 'a',
-                constraints: [
-                    {
-                        contextName: 'a',
-                        operator: 'IN',
-                    },
-                ],
-            },
-        ],
         variants: [
             {
                 name: 'a',
                 weight: 1,
-                weightType: 'a',
+                weightType: 'fix',
                 stickiness: 'a',
                 overrides: [{ contextName: 'a', values: ['a'] }],
-                payload: { type: 'a', value: 'b' },
+                payload: { type: 'string', value: 'b' },
             },
         ],
         environments: [
@@ -30,6 +19,19 @@ test('featureSchema', () => {
                 name: 'a',
                 type: 'b',
                 enabled: true,
+                strategies: [
+                    {
+                        id: 'a',
+                        name: 'a',
+                        constraints: [
+                            {
+                                contextName: 'a',
+                                operator: 'IN',
+                            },
+                        ],
+                        segments: [1],
+                    },
+                ],
             },
         ],
     };
@@ -42,7 +44,16 @@ test('featureSchema', () => {
 test('featureSchema constraints', () => {
     const data = {
         name: 'a',
-        strategies: [{ name: 'a', constraints: [{ contextName: 'a' }] }],
+        environments: [
+            {
+                name: 'a',
+                type: 'b',
+                enabled: true,
+                strategies: [
+                    { name: 'a', constraints: [{ contextName: 'a' }] },
+                ],
+            },
+        ],
     };
 
     expect(
@@ -50,14 +61,30 @@ test('featureSchema constraints', () => {
     ).toMatchSnapshot();
 });
 
-test('featureSchema overrides', () => {
+test('featureSchema variants should only have a few required fields', () => {
     const data = {
         name: 'a',
         variants: [
             {
                 name: 'a',
                 weight: 1,
-                weightType: 'a',
+            },
+        ],
+    };
+
+    expect(
+        validateSchema('#/components/schemas/featureSchema', data),
+    ).toBeUndefined();
+});
+
+test('featureSchema variant override values must be an array', () => {
+    const data = {
+        name: 'a',
+        variants: [
+            {
+                name: 'a',
+                weight: 1,
+                weightType: 'fix',
                 stickiness: 'a',
                 overrides: [{ contextName: 'a', values: 'b' }],
                 payload: { type: 'a', value: 'b' },

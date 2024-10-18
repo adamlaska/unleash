@@ -1,4 +1,4 @@
-import {
+import type {
     IContextField,
     IContextFieldDto,
     IContextFieldStore,
@@ -6,6 +6,10 @@ import {
 import NotFoundError from '../../lib/error/notfound-error';
 
 export default class FakeContextFieldStore implements IContextFieldStore {
+    count(): Promise<number> {
+        return Promise.resolve(0);
+    }
+
     defaultContextFields: IContextField[] = [
         {
             name: 'environment',

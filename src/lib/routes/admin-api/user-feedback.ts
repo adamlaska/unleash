@@ -1,20 +1,21 @@
-import { Response } from 'express';
+import type { Response } from 'express';
 import Controller from '../controller';
-import { Logger } from '../../logger';
-import { IUnleashConfig } from '../../types/option';
-import { IUnleashServices } from '../../types/services';
-import UserFeedbackService from '../../services/user-feedback-service';
-import { IAuthRequest } from '../unleash-types';
+import type { Logger } from '../../logger';
+import type { IUnleashConfig } from '../../types/option';
+import type { IUnleashServices } from '../../types/services';
+import type UserFeedbackService from '../../services/user-feedback-service';
+import type { IAuthRequest } from '../unleash-types';
 import { NONE } from '../../types/permissions';
-import { OpenApiService } from '../../services/openapi-service';
-import {
-    feedbackSchema,
-    FeedbackSchema,
-} from '../../openapi/spec/feedback-schema';
+import type { OpenApiService } from '../../services/openapi-service';
+import type { FeedbackCreateSchema } from '../../openapi/spec/feedback-create-schema';
+import type { FeedbackUpdateSchema } from '../../openapi/spec/feedback-update-schema';
+import type { FeedbackResponseSchema } from '../../openapi/spec/feedback-response-schema';
 import { serializeDates } from '../../types/serialize-dates';
 import { parseISO } from 'date-fns';
-import { createRequestSchema, createResponseSchema } from '../../openapi';
+import { createRequestSchema } from '../../openapi/util/create-request-schema';
+import { createResponseSchema } from '../../openapi/util/create-response-schema';
 import BadDataError from '../../error/bad-data-error';
+import { feedbackResponseSchema, getStandardResponses } from '../../openapi';
 
 class UserFeedbackController extends Controller {
     private logger: Logger;
@@ -42,10 +43,16 @@ class UserFeedbackController extends Controller {
             permission: NONE,
             middleware: [
                 openApiService.validPath({
-                    tags: ['admin'],
+                    tags: ['Admin UI'],
                     operationId: 'createFeedback',
-                    requestBody: createRequestSchema('feedbackSchema'),
-                    responses: { 200: createResponseSchema('feedbackSchema') },
+                    summary: 'Send Unleash feedback',
+                    description:
+                        'Sends feedback gathered from the Unleash UI to the Unleash server. Must be called with a token with an identifiable user (either from being sent from the UI or from using a [PAT](https://docs.getunleash.io/reference/api-tokens-and-client-keys#personal-access-tokens)).',
+                    requestBody: createRequestSchema('feedbackCreateSchema'),
+                    responses: {
+                        200: createResponseSchema('feedbackResponseSchema'),
+                        ...getStandardResponses(400, 401, 415),
+                    },
                 }),
             ],
         });
@@ -57,18 +64,24 @@ class UserFeedbackController extends Controller {
             permission: NONE,
             middleware: [
                 openApiService.validPath({
-                    tags: ['admin'],
+                    tags: ['Admin UI'],
                     operationId: 'updateFeedback',
-                    requestBody: createRequestSchema('feedbackSchema'),
-                    responses: { 200: createResponseSchema('feedbackSchema') },
+                    summary: 'Update Unleash feedback',
+                    description:
+                        'Updates the feedback with the provided ID. Only provided fields are updated. Fields left out are left untouched. Must be called with a token with an identifiable user (either from being sent from the UI or from using a [PAT](https://docs.getunleash.io/reference/api-tokens-and-client-keys#personal-access-tokens)).',
+                    requestBody: createRequestSchema('feedbackUpdateSchema'),
+                    responses: {
+                        200: createResponseSchema('feedbackResponseSchema'),
+                        ...getStandardResponses(400, 401, 415),
+                    },
                 }),
             ],
         });
     }
 
     private async createFeedback(
-        req: IAuthRequest<unknown, unknown, FeedbackSchema>,
-        res: Response<FeedbackSchema>,
+        req: IAuthRequest<unknown, unknown, FeedbackCreateSchema>,
+        res: Response<FeedbackResponseSchema>,
     ): Promise<void> {
         if (!req.body.feedbackId) {
             throw new BadDataError('Missing feedbackId');
@@ -84,14 +97,14 @@ class UserFeedbackController extends Controller {
         this.openApiService.respondWithValidation(
             200,
             res,
-            feedbackSchema.$id,
+            feedbackResponseSchema.$id,
             serializeDates(updated),
         );
     }
 
     private async updateFeedback(
-        req: IAuthRequest<{ id: string }, unknown, FeedbackSchema>,
-        res: Response<FeedbackSchema>,
+        req: IAuthRequest<{ id: string }, unknown, FeedbackUpdateSchema>,
+        res: Response<FeedbackResponseSchema>,
     ): Promise<void> {
         const updated = await this.userFeedbackService.updateFeedback({
             feedbackId: req.params.id,
@@ -103,7 +116,7 @@ class UserFeedbackController extends Controller {
         this.openApiService.respondWithValidation(
             200,
             res,
-            feedbackSchema.$id,
+            feedbackResponseSchema.$id,
             serializeDates(updated),
         );
     }

@@ -28,7 +28,7 @@ export const strategiesSchema = joi.object().keys({
     parameters: joi.object(),
 });
 
-const variantValueSchema = joi
+export const variantValueSchema = joi
     .string()
     .required()
     // perform additional validation
@@ -50,7 +50,13 @@ const variantValueSchema = joi
 
 export const variantsSchema = joi.object().keys({
     name: nameType,
-    weight: joi.number().min(0).max(1000).required(),
+    weight: joi
+        .number()
+        .integer()
+        .message('Weight only supports 1 decimal')
+        .min(0)
+        .max(1000)
+        .required(),
     weightType: joi.string().valid('variable', 'fix').default('variable'),
     payload: joi
         .object()
@@ -92,6 +98,22 @@ export const featureMetadataSchema = joi
             .default(false)
             .optional(),
         createdAt: joi.date().optional().allow(null),
+        variants: joi
+            .array()
+            .allow(null)
+            .unique((a, b) => a.name === b.name)
+            .optional()
+            .items(variantsSchema),
+        tags: joi
+            .array()
+            .optional()
+            .items(
+                joi.object().keys({
+                    type: joi.string().required(),
+                    value: joi.string().required(),
+                }),
+            ),
+        createdByUserId: joi.number(),
     })
     .options({ allowUnknown: false, stripUnknown: true, abortEarly: false });
 
@@ -147,4 +169,5 @@ export const featureTagSchema = joi.object().keys({
     tagValue: joi.string(),
     type: nameType.optional(),
     value: joi.string().optional(),
+    createdByUserId: joi.number().optional(),
 });

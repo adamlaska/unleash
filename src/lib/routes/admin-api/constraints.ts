@@ -1,13 +1,13 @@
-import { Request, Response } from 'express';
-import FeatureToggleService from '../../services/feature-toggle-service';
-import { IUnleashConfig } from '../../types/option';
-import { IUnleashServices } from '../../types';
-import { IConstraint } from '../../types/model';
+import type { Request, Response } from 'express';
+import type FeatureToggleService from '../../features/feature-toggle/feature-toggle-service';
+import type { IUnleashConfig } from '../../types/option';
+import type { IUnleashServices } from '../../types';
 import { NONE } from '../../types/permissions';
 import Controller from '../controller';
-import { Logger } from '../../logger';
-import { OpenApiService } from '../../services/openapi-service';
-import { createRequestSchema } from '../../openapi';
+import type { Logger } from '../../logger';
+import type { OpenApiService } from '../../services/openapi-service';
+import { createRequestSchema } from '../../openapi/util/create-request-schema';
+import { type ConstraintSchema, getStandardResponses } from '../../openapi';
 
 export default class ConstraintController extends Controller {
     private featureService: FeatureToggleService;
@@ -35,12 +35,15 @@ export default class ConstraintController extends Controller {
             permission: NONE,
             middleware: [
                 openApiService.validPath({
-                    tags: ['admin'],
+                    tags: ['Features'],
                     operationId: 'validateConstraint',
                     requestBody: createRequestSchema('constraintSchema'),
+                    summary: 'Validate constraint',
+                    description:
+                        'Validates a constraint definition. Checks whether the context field exists and whether the applied configuration is valid. Additional properties are not allowed on data objects that you send to this endpoint.',
                     responses: {
-                        204: { description: 'validConstraint' },
-                        400: { description: 'invalidConstraint' },
+                        204: { description: 'The constraint is valid' },
+                        ...getStandardResponses(400, 401, 403, 415),
                     },
                 }),
             ],
@@ -48,7 +51,7 @@ export default class ConstraintController extends Controller {
     }
 
     async validateConstraint(
-        req: Request<void, void, IConstraint>,
+        req: Request<void, void, ConstraintSchema>,
         res: Response,
     ): Promise<void> {
         await this.featureService.validateConstraint(req.body);

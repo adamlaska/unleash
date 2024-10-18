@@ -1,16 +1,17 @@
+import { log } from 'db-migrate-shared';
 import { migrateDb } from '../../../migrator';
 import { createStores } from '../../../lib/db';
 import { createDb } from '../../../lib/db/db-pool';
 import { getDbConfig } from './database-config';
 import { createTestConfig } from '../../config/test-config';
 import dbState from './database.json';
-import { LogProvider } from '../../../lib/logger';
+import type { LogProvider } from '../../../lib/logger';
 import noLoggerProvider from '../../fixtures/no-logger';
-import EnvironmentStore from '../../../lib/db/environment-store';
-import { IUnleashStores } from '../../../lib/types';
-import { IFeatureEnvironmentStore } from '../../../lib/types/stores/feature-environment-store';
+import type EnvironmentStore from '../../../lib/features/project-environments/environment-store';
+import type { IUnleashStores } from '../../../lib/types';
+import type { IFeatureEnvironmentStore } from '../../../lib/types/stores/feature-environment-store';
 import { DEFAULT_ENV } from '../../../lib/util/constants';
-import { IUnleashOptions } from 'lib/server-impl';
+import type { IUnleashOptions, Knex } from '../../../lib/server-impl';
 
 // require('db-migrate-shared').log.silence(false);
 
@@ -34,7 +35,12 @@ async function resetDatabase(knex) {
         knex.table('tag_types').del(),
         knex.table('addons').del(),
         knex.table('users').del(),
-        knex.table('reset_tokens').del(),
+        knex.table('api_tokens').del(),
+        knex.table('api_token_project').del(),
+        knex
+            .table('reset_tokens')
+            .del(),
+        // knex.table('settings').del(),
     ]);
 }
 
@@ -75,10 +81,11 @@ export interface ITestDb {
     stores: IUnleashStores;
     reset: () => Promise<void>;
     destroy: () => Promise<void>;
+    rawDatabase: Knex;
 }
 
 export default async function init(
-    databaseSchema: string = 'test',
+    databaseSchema = 'test',
     getLogger: LogProvider = noLoggerProvider,
     configOverride: Partial<IUnleashOptions> = {},
 ): Promise<ITestDb> {
@@ -93,12 +100,12 @@ export default async function init(
         getLogger,
     });
 
+    log.setLogLevel('error');
     const db = createDb(config);
 
     await db.raw(`DROP SCHEMA IF EXISTS ${config.db.schema} CASCADE`);
     await db.raw(`CREATE SCHEMA IF NOT EXISTS ${config.db.schema}`);
-    // @ts-expect-error
-    await migrateDb({ ...config, databaseSchema: config.db.schema });
+    await migrateDb(config);
     await db.destroy();
     const testDb = createDb(config);
     const stores = await createStores(config, testDb);
@@ -107,15 +114,14 @@ export default async function init(
     await setupDatabase(stores);
 
     return {
+        rawDatabase: testDb,
         stores,
         reset: async () => {
             await resetDatabase(testDb);
             await setupDatabase(stores);
         },
         destroy: async () => {
-            const { clientInstanceStore } = stores;
             return new Promise<void>((resolve, reject) => {
-                clientInstanceStore.destroy();
                 testDb.destroy((error) => (error ? reject(error) : resolve()));
             });
         },

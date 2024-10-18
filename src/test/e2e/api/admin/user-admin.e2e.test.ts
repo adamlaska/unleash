@@ -1,38 +1,53 @@
-import { setupApp, setupAppWithCustomConfig } from '../../helpers/test-helper';
-import dbInit from '../../helpers/database-init';
+import {
+    type IUnleashTest,
+    setupAppWithCustomConfig,
+} from '../../helpers/test-helper';
+import dbInit, { type ITestDb } from '../../helpers/database-init';
 import getLogger from '../../../fixtures/no-logger';
 import {
     USER_CREATED,
     USER_DELETED,
     USER_UPDATED,
 } from '../../../../lib/types/events';
-import { IRole } from '../../../../lib/types/stores/access-store';
-import { IEventStore } from '../../../../lib/types/stores/event-store';
-import { IUserStore } from '../../../../lib/types/stores/user-store';
+import type { IRole } from '../../../../lib/types/stores/access-store';
+import type { IEventStore } from '../../../../lib/types/stores/event-store';
+import type { IUserStore } from '../../../../lib/types/stores/user-store';
 import { RoleName } from '../../../../lib/types/model';
-import { IRoleStore } from 'lib/types/stores/role-store';
+import type { IRoleStore } from '../../../../lib/types/stores/role-store';
+import { randomId } from '../../../../lib/util/random-id';
+import { omitKeys } from '../../../../lib/util/omit-keys';
+import type { ISessionStore } from '../../../../lib/types/stores/session-store';
+import type { IUnleashStores } from '../../../../lib/types';
 
-let stores;
-let db;
-let app;
+let stores: IUnleashStores;
+let db: ITestDb;
+let app: IUnleashTest;
 
 let userStore: IUserStore;
 let eventStore: IEventStore;
 let roleStore: IRoleStore;
+let sessionStore: ISessionStore;
 let editorRole: IRole;
 let adminRole: IRole;
 
 beforeAll(async () => {
     db = await dbInit('user_admin_api_serial', getLogger);
     stores = db.stores;
-    app = await setupApp(stores);
+    app = await setupAppWithCustomConfig(stores, {
+        experimental: {
+            flags: {
+                strictSchemaValidation: true,
+            },
+        },
+    });
 
     userStore = stores.userStore;
     eventStore = stores.eventStore;
     roleStore = stores.roleStore;
+    sessionStore = stores.sessionStore;
     const roles = await roleStore.getRootRoles();
-    editorRole = roles.find((r) => r.name === RoleName.EDITOR);
-    adminRole = roles.find((r) => r.name === RoleName.ADMIN);
+    editorRole = roles.find((r) => r.name === RoleName.EDITOR)!!;
+    adminRole = roles.find((r) => r.name === RoleName.ADMIN)!!;
 });
 
 afterAll(async () => {
@@ -133,6 +148,19 @@ test('requires known root role', async () => {
         .expect(400);
 });
 
+test('should require username or email on create', async () => {
+    await app.request
+        .post('/api/admin/user-admin')
+        .send({ rootRole: adminRole.id })
+        .set('Content-Type', 'application/json')
+        .expect(400)
+        .expect((res) => {
+            expect(res.body.details[0].message).toEqual(
+                'You must specify username or email',
+            );
+        });
+});
+
 test('update user name', async () => {
     const { body } = await app.request
         .post('/api/admin/user-admin')
@@ -157,6 +185,24 @@ test('update user name', async () => {
         });
 });
 
+test('should not require any fields on update', async () => {
+    const { body: created } = await app.request
+        .post('/api/admin/user-admin')
+        .send({ email: `${randomId()}@example.com`, rootRole: editorRole.id })
+        .set('Content-Type', 'application/json')
+        .expect(201);
+
+    const { body: updated } = await app.request
+        .put(`/api/admin/user-admin/${created.id}`)
+        .send({})
+        .set('Content-Type', 'application/json')
+        .expect(200);
+
+    expect(updated).toEqual(
+        omitKeys(created, 'emailSent', 'inviteLink', 'rootRole'),
+    );
+});
+
 test('get a single user', async () => {
     const { body } = await app.request
         .post('/api/admin/user-admin')
@@ -179,7 +225,8 @@ test('get a single user', async () => {
 test('should delete user', async () => {
     const user = await userStore.insert({ email: 'some@mail.com' });
 
-    return app.request.delete(`/api/admin/user-admin/${user.id}`).expect(200);
+    await app.request.delete(`/api/admin/user-admin/${user.id}`).expect(200);
+    await app.request.get(`/api/admin/user-admin/${user.id}`).expect(404);
 });
 
 test('validator should require strong password', async () => {
@@ -198,11 +245,12 @@ test('validator should accept strong password', async () => {
 
 test('should change password', async () => {
     const user = await userStore.insert({ email: 'some@mail.com' });
-
-    return app.request
+    const spy = jest.spyOn(sessionStore, 'deleteSessionsForUser');
+    await app.request
         .post(`/api/admin/user-admin/${user.id}/change-password`)
         .send({ password: 'simple123-_ASsad' })
         .expect(200);
+    expect(spy).toHaveBeenCalled();
 });
 
 test('should search for users', async () => {
@@ -304,7 +352,7 @@ test('generates USER_CREATED event', async () => {
 
 test('generates USER_DELETED event', async () => {
     const user = await userStore.insert({ email: 'some@mail.com' });
-    await app.request.delete(`/api/admin/user-admin/${user.id}`);
+    await app.request.delete(`/api/admin/user-admin/${user.id}`).expect(200);
 
     const events = await eventStore.getEvents();
     expect(events[0].type).toBe(USER_DELETED);
@@ -333,4 +381,27 @@ test('generates USER_UPDATED event', async () => {
     expect(events[0].type).toBe(USER_UPDATED);
     expect(events[0].data.id).toBe(body.id);
     expect(events[0].data.name).toBe('New name');
+});
+
+test('Anonymises name, username and email fields if anonymiseEventLog flag is set', async () => {
+    const anonymisedApp = await setupAppWithCustomConfig(
+        stores,
+        { experimental: { flags: { anonymiseEventLog: true } } },
+        db.rawDatabase,
+    );
+    await anonymisedApp.request
+        .post('/api/admin/user-admin')
+        .send({
+            email: 'some@getunleash.ai',
+            name: 'Some Name',
+            rootRole: editorRole.id,
+        })
+        .set('Content-Type', 'application/json');
+    const response = await anonymisedApp.request.get(
+        '/api/admin/user-admin/access',
+    );
+    const body = response.body;
+    expect(body.users[0].email).toEqual('aeb83743e@unleash.run');
+    expect(body.users[0].name).toEqual('3a8b17647@unleash.run');
+    expect(body.users[0].username).toEqual(''); // Not set, so anonymise should return the empty string.
 });

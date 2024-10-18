@@ -8,8 +8,9 @@
    be necessary to separate into multiple components based on request
    types, for instance.
 
-**/
+ **/
 
+// biome-ignore lint/style/useImportType: <explanation>
 import React from 'react';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
@@ -85,19 +86,19 @@ http ${verbUpper} \\
     ).trim();
 
     return (
-        <Tabs groupId="api-request">
-            <TabItem value="http" label="HTTP">
-                <CodeBlock language="http" title={title}>
+        <Tabs groupId='api-request'>
+            <TabItem value='http' label='HTTP'>
+                <CodeBlock language='http' title={title}>
                     {httpBlock}
                 </CodeBlock>
             </TabItem>
-            <TabItem value="curl" label="cURL">
-                <CodeBlock language="bash" title={title}>
+            <TabItem value='curl' label='cURL'>
+                <CodeBlock language='bash' title={title}>
                     {curlBlock}
                 </CodeBlock>
             </TabItem>
-            <TabItem value="httpie" label="HTTPie">
-                <CodeBlock language="bash" title={title}>
+            <TabItem value='httpie' label='HTTPie'>
+                <CodeBlock language='bash' title={title}>
                     {httpieBlock}
                 </CodeBlock>
             </TabItem>

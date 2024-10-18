@@ -1,7 +1,6 @@
 // Partial types for "@unleash/express-openapi".
 declare module '@unleash/express-openapi' {
-    import { RequestHandler } from 'express';
-    import { OpenAPIV3 } from 'openapi-types';
+    import type { RequestHandler } from 'express';
 
     export interface IExpressOpenApi extends RequestHandler {
         validPath: (operation: OpenAPIV3.OperationObject) => RequestHandler;
@@ -12,6 +11,6 @@ declare module '@unleash/express-openapi' {
     export default function openapi(
         docsPath: string,
         document: Omit<OpenAPIV3.Document, 'paths'>,
-        options?: { coerce: boolean },
+        options?: { coerce: boolean; extendRefs: boolean },
     ): IExpressOpenApi;
 }

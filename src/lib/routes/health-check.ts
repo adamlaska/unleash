@@ -1,33 +1,26 @@
-import { Request, Response } from 'express';
-import { IUnleashConfig } from '../types/option';
-import { IUnleashServices } from '../types/services';
-import { Logger } from '../logger';
-import HealthService from '../services/health-service';
-import { OpenApiService } from '../services/openapi-service';
+import type { Request, Response } from 'express';
+import type { IUnleashConfig } from '../types/option';
+import type { IUnleashServices } from '../types/services';
+import type { Logger } from '../logger';
+import type { OpenApiService } from '../services/openapi-service';
 
 import Controller from './controller';
 import { NONE } from '../types/permissions';
-import { createResponseSchema } from '../openapi';
-import { HealthCheckSchema } from '../openapi/spec/health-check-schema';
+import { createResponseSchema } from '../openapi/util/create-response-schema';
+import type { HealthCheckSchema } from '../openapi/spec/health-check-schema';
 
 export class HealthCheckController extends Controller {
     private logger: Logger;
 
     private openApiService: OpenApiService;
 
-    private healthService: HealthService;
-
     constructor(
         config: IUnleashConfig,
-        {
-            healthService,
-            openApiService,
-        }: Pick<IUnleashServices, 'healthService' | 'openApiService'>,
+        { openApiService }: Pick<IUnleashServices, 'openApiService'>,
     ) {
         super(config);
         this.logger = config.getLogger('health-check.js');
         this.openApiService = openApiService;
-        this.healthService = healthService;
 
         this.route({
             method: 'get',
@@ -36,8 +29,11 @@ export class HealthCheckController extends Controller {
             permission: NONE,
             middleware: [
                 openApiService.validPath({
-                    tags: ['other'],
+                    tags: ['Operational'],
                     operationId: 'getHealth',
+                    summary: 'Get instance operational status',
+                    description:
+                        'This operation returns information about whether this Unleash instance is healthy and ready to serve requests or not. Typically used by your deployment orchestrator (e.g. Kubernetes, Docker Swarm, Mesos, et al.).',
                     responses: {
                         200: createResponseSchema('healthCheckSchema'),
                         500: createResponseSchema('healthCheckSchema'),
@@ -51,12 +47,6 @@ export class HealthCheckController extends Controller {
         _: Request,
         res: Response<HealthCheckSchema>,
     ): Promise<void> {
-        try {
-            await this.healthService.dbIsUp();
-            res.status(200).json({ health: 'GOOD' });
-        } catch (e) {
-            this.logger.error('Could not select from features, error was: ', e);
-            res.status(500).json({ health: 'BAD' });
-        }
+        res.status(200).json({ health: 'GOOD' });
     }
 }

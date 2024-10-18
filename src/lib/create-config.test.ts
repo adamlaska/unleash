@@ -15,7 +15,13 @@ test('should create default config', async () => {
         },
     });
 
-    expect(config).toMatchSnapshot();
+    const { experimental, flagResolver, ...configWithoutExperimental } = config;
+    expect(configWithoutExperimental).toMatchSnapshot();
+    expect(flagResolver).toMatchObject({
+        getAll: expect.any(Function),
+        isEnabled: expect.any(Function),
+        getVariant: expect.any(Function),
+    });
 });
 
 test('should add initApiToken for admin token from options', async () => {
@@ -24,7 +30,7 @@ test('should add initApiToken for admin token from options', async () => {
         project: '*',
         secret: '*:*.some-random-string',
         type: ApiTokenType.ADMIN,
-        username: 'admin',
+        tokenName: 'admin',
     };
     const config = createConfig({
         db: {
@@ -58,7 +64,7 @@ test('should add initApiToken for client token from options', async () => {
         project: 'default',
         secret: 'default:development.some-random-string',
         type: ApiTokenType.CLIENT,
-        username: 'admin',
+        tokenName: 'admin',
     };
     const config = createConfig({
         db: {
@@ -143,7 +149,7 @@ test('should merge initApiToken from options and env vars', async () => {
         project: '*',
         secret: '*:*.some-random-string',
         type: ApiTokenType.ADMIN,
-        username: 'admin',
+        tokenName: 'admin',
     };
     const config = createConfig({
         db: {
@@ -204,7 +210,7 @@ test('should handle cases where no env var specified for tokens', async () => {
         project: '*',
         secret: '*:*.some-random-string',
         type: ApiTokenType.ADMIN,
-        username: 'admin',
+        tokenName: 'admin',
     };
     const config = createConfig({
         db: {
@@ -223,6 +229,11 @@ test('should handle cases where no env var specified for tokens', async () => {
     });
 
     expect(config.authentication.initApiTokens).toHaveLength(1);
+});
+
+test('should default demo admin login to false', async () => {
+    const config = createConfig({});
+    expect(config.authentication.demoAllowAdminLogin).toBeFalsy();
 });
 
 test('should load environment overrides from env var', async () => {
@@ -277,6 +288,7 @@ test('should yield all empty lists when no additionalCspAllowedDomains are set',
     expect(config.additionalCspAllowedDomains.styleSrc).toStrictEqual([]);
     expect(config.additionalCspAllowedDomains.scriptSrc).toStrictEqual([]);
     expect(config.additionalCspAllowedDomains.imgSrc).toStrictEqual([]);
+    expect(config.additionalCspAllowedDomains.connectSrc).toStrictEqual([]);
 });
 
 test('If additionalCspAllowedDomains is set in config map, passes through', async () => {
@@ -287,6 +299,7 @@ test('If additionalCspAllowedDomains is set in config map, passes through', asyn
             styleSrc: [],
             scriptSrc: [],
             imgSrc: [],
+            connectSrc: [],
         },
     });
     expect(config.additionalCspAllowedDomains).toBeDefined();
@@ -297,6 +310,7 @@ test('If additionalCspAllowedDomains is set in config map, passes through', asyn
     expect(config.additionalCspAllowedDomains.styleSrc).toStrictEqual([]);
     expect(config.additionalCspAllowedDomains.scriptSrc).toStrictEqual([]);
     expect(config.additionalCspAllowedDomains.imgSrc).toStrictEqual([]);
+    expect(config.additionalCspAllowedDomains.connectSrc).toStrictEqual([]);
 });
 
 test('Can set partial additionalCspDomains', () => {
@@ -321,6 +335,7 @@ test.each([
     ['CSP_ALLOWED_STYLE', 'googlefonts.com', 'styleSrc'],
     ['CSP_ALLOWED_SCRIPT', 'googlefonts.com', 'scriptSrc'],
     ['CSP_ALLOWED_IMG', 'googlefonts.com', 'imgSrc'],
+    ['CSP_ALLOWED_CONNECT', 'googlefonts.com', 'connectSrc'],
 ])(
     'When %s is set to %s. %s should include passed in domain',
     (env, domain, key) => {
@@ -342,6 +357,7 @@ test('When multiple CSP environment variables are set, respects them all', () =>
     process.env.CSP_ALLOWED_DEFAULT = 'googlefonts.com';
     process.env.CSP_ALLOWED_IMG = 'googlefonts.com';
     process.env.CSP_ALLOWED_SCRIPT = 'plausible.getunleash.io';
+    process.env.CSP_ALLOWED_CONNECT = 'plausible.getunleash.io';
     const config = createConfig({});
     expect(config.additionalCspAllowedDomains.imgSrc).toStrictEqual([
         'googlefonts.com',
@@ -352,9 +368,13 @@ test('When multiple CSP environment variables are set, respects them all', () =>
     expect(config.additionalCspAllowedDomains.scriptSrc).toStrictEqual([
         'plausible.getunleash.io',
     ]);
+    expect(config.additionalCspAllowedDomains.connectSrc).toStrictEqual([
+        'plausible.getunleash.io',
+    ]);
     delete process.env.CSP_ALLOWED_DEFAULT;
     delete process.env.CSP_ALLOWED_IMG;
     delete process.env.CSP_ALLOWED_SCRIPT;
+    delete process.env.CSP_ALLOWED_CONNECT;
 });
 
 test('Supports multiple domains comma separated in environment variables', () => {
@@ -369,7 +389,7 @@ test('Supports multiple domains comma separated in environment variables', () =>
 test('Should enable client feature caching with .6 seconds max age by default', () => {
     const config = createConfig({});
     expect(config.clientFeatureCaching.enabled).toBe(true);
-    expect(config.clientFeatureCaching.maxAge).toBe(600);
+    expect(config.clientFeatureCaching.maxAge).toBe(3600000);
 });
 
 test('Should use overrides from options for client feature caching', () => {
@@ -402,4 +422,79 @@ test('Environment variables for client features caching takes priority over opti
     });
     expect(config.clientFeatureCaching.enabled).toBe(true);
     expect(config.clientFeatureCaching.maxAge).toBe(120);
+});
+
+test('Environment variables for frontend CORS origins takes priority over options', async () => {
+    const create = (frontendApiOrigins?): string[] => {
+        return createConfig({
+            frontendApiOrigins,
+        }).frontendApiOrigins;
+    };
+
+    expect(create()).toEqual(['*']);
+    expect(create([])).toEqual([]);
+    expect(create(['*'])).toEqual(['*']);
+    expect(create(['https://example.com'])).toEqual(['https://example.com']);
+    expect(() => create(['a'])).toThrow('Invalid origin: a');
+
+    process.env.UNLEASH_FRONTEND_API_ORIGINS = '';
+    expect(create()).toEqual([]);
+    process.env.UNLEASH_FRONTEND_API_ORIGINS = '*';
+    expect(create()).toEqual(['*']);
+    process.env.UNLEASH_FRONTEND_API_ORIGINS = 'https://example.com, *';
+    expect(create()).toEqual(['https://example.com', '*']);
+    process.env.UNLEASH_FRONTEND_API_ORIGINS = 'b';
+    expect(() => create(['a'])).toThrow('Invalid origin: b');
+    delete process.env.UNLEASH_FRONTEND_API_ORIGINS;
+    expect(create()).toEqual(['*']);
+});
+
+test('baseUriPath defaults to the empty string', async () => {
+    const config = createConfig({});
+    expect(config.server.baseUriPath).toBe('');
+});
+test('BASE_URI_PATH defined in env is passed through', async () => {
+    process.env.BASE_URI_PATH = '/demo';
+    const config = createConfig({});
+    expect(config.server.baseUriPath).toBe('/demo');
+    delete process.env.BASE_URI_PATH;
+});
+
+test('environment variable takes precedence over configured variable', async () => {
+    process.env.BASE_URI_PATH = '/demo';
+    const config = createConfig({
+        server: {
+            baseUriPath: '/other',
+        },
+    });
+    expect(config.server.baseUriPath).toBe('/demo');
+    delete process.env.BASE_URI_PATH;
+});
+
+test.each(['demo', '/demo', '/demo/'])(
+    'Trailing and leading slashes gets normalized for base path %s',
+    async (path) => {
+        const config = createConfig({
+            server: {
+                baseUriPath: path,
+            },
+        });
+        expect(config.server.baseUriPath).toBe('/demo');
+    },
+);
+
+test('Config with enterpriseVersion set and pro environment should set isEnterprise to false', async () => {
+    const config = createConfig({
+        enterpriseVersion: '5.3.0',
+        ui: { environment: 'pro' },
+    });
+    expect(config.isEnterprise).toBe(false);
+});
+
+test('Config with enterpriseVersion set and not pro environment should set isEnterprise to true', async () => {
+    const config = createConfig({
+        enterpriseVersion: '5.3.0',
+        ui: { environment: 'Enterprise' },
+    });
+    expect(config.isEnterprise).toBe(true);
 });

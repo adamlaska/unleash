@@ -1,9 +1,10 @@
-import supertest from 'supertest';
+import supertest, { type Test } from 'supertest';
 import { createTestConfig } from '../../../test/config/test-config';
 import createStores from '../../../test/fixtures/store';
 import { createServices } from '../../services';
 import permissions from '../../../test/fixtures/permissions';
 import getApp from '../../app';
+import type TestAgent from 'supertest/lib/agent';
 
 async function getSetup() {
     const base = `/random${Math.round(Math.random() * 1000)}`;
@@ -20,27 +21,16 @@ async function getSetup() {
     return {
         base,
         request: supertest(app),
-        destroy: () => {
-            services.versionService.destroy();
-            services.clientInstanceService.destroy();
-            services.apiTokenService.destroy();
-        },
     };
 }
 
-let base;
-let request;
-let destroy;
+let base: string;
+let request: TestAgent<Test>;
 
 beforeEach(async () => {
     const setup = await getSetup();
     base = setup.base;
     request = setup.request;
-    destroy = setup.destroy;
-});
-
-afterEach(async () => {
-    await destroy();
 });
 
 test('should get all context definitions', () => {
