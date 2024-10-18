@@ -1,38 +1,45 @@
-import { FromSchema } from 'json-schema-to-ts';
+import type { FromSchema } from 'json-schema-to-ts';
 import { constraintSchema } from './constraint-schema';
 
 export const updateFeatureSchema = {
     $id: '#/components/schemas/updateFeatureSchema',
     type: 'object',
-    required: ['name'],
+    description: 'Data used for updating a feature flag',
     properties: {
-        name: {
-            type: 'string',
-        },
         description: {
             type: 'string',
+            example:
+                'Controls disabling of the comments section in case of an incident',
+            description: 'Detailed description of the feature',
         },
         type: {
-            type: 'string',
+            enum: [
+                'experiment',
+                'kill-switch',
+                'release',
+                'operational',
+                'permission',
+            ],
+            example: 'kill-switch',
+            description:
+                'Type of the flag e.g. experiment, kill-switch, release, operational, permission',
         },
         stale: {
             type: 'boolean',
+            example: true,
+            description: '`true` if the feature is archived',
         },
         archived: {
             type: 'boolean',
-        },
-        createdAt: {
-            type: 'string',
-            format: 'date-time',
+            example: true,
+            description:
+                'If `true` the feature flag will be moved to the [archive](https://docs.getunleash.io/reference/feature-toggles#archive-a-feature-flag) with a property `archivedAt` set to current time',
         },
         impressionData: {
             type: 'boolean',
-        },
-        constraints: {
-            type: 'array',
-            items: {
-                $ref: '#/components/schemas/constraintSchema',
-            },
+            example: false,
+            description:
+                '`true` if the impression data collection is enabled for the feature',
         },
     },
     components: {

@@ -1,4 +1,4 @@
-import { Store } from './store';
+import type { Store } from './store';
 
 export interface IFeatureType {
     id: string;
@@ -9,4 +9,8 @@ export interface IFeatureType {
 
 export interface IFeatureTypeStore extends Store<IFeatureType, string> {
     getByName(name: string): Promise<IFeatureType>;
+    updateLifetime(
+        name: string,
+        newLifetimeDays: number | null,
+    ): Promise<IFeatureType | undefined>;
 }

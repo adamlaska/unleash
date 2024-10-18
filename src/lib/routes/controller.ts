@@ -1,26 +1,27 @@
-import { IRouter, Router, Request, Response, RequestHandler } from 'express';
-import { Logger } from 'lib/logger';
-import { IUnleashConfig } from '../types/option';
-import { NONE } from '../types/permissions';
+import {
+    type IRouter,
+    Router,
+    type Request,
+    type Response,
+    type RequestHandler,
+} from 'express';
+import type { Logger } from '../logger';
+import { type IUnleashConfig, NONE } from '../types';
 import { handleErrors } from './util';
-import NoAccessError from '../error/no-access-error';
 import requireContentType from '../middleware/content_type_checker';
+import { PermissionError } from '../error';
+import { storeRequestedRoute } from '../middleware/response-time-metrics';
 
-interface IRequestHandler<
-    P = any,
-    ResBody = any,
-    ReqBody = any,
-    ReqQuery = any,
-> {
-    (
-        req: Request<P, ResBody, ReqBody, ReqQuery>,
-        res: Response<ResBody>,
-    ): Promise<void> | void;
-}
+type IRequestHandler<P = any, ResBody = any, ReqBody = any, ReqQuery = any> = (
+    req: Request<P, ResBody, ReqBody, ReqQuery>,
+    res: Response<ResBody>,
+) => Promise<void> | void;
+
+type Permission = string | string[];
 
 interface IRouteOptionsBase {
     path: string;
-    permission: string;
+    permission: Permission;
     middleware?: RequestHandler[];
     handler: IRequestHandler;
     acceptedContentTypes?: string[];
@@ -37,14 +38,30 @@ interface IRouteOptionsNonGet extends IRouteOptionsBase {
 
 type IRouteOptions = IRouteOptionsNonGet | IRouteOptionsGet;
 
-const checkPermission = (permission) => async (req, res, next) => {
-    if (!permission || permission === NONE) {
+const checkPermission =
+    (permission: Permission = []) =>
+    async (req, res, next) => {
+        const permissions = (
+            Array.isArray(permission) ? permission : [permission]
+        ).filter((p) => p !== NONE);
+
+        if (!permissions.length) {
+            return next();
+        }
+        if (req.checkRbac && (await req.checkRbac(permissions))) {
+            return next();
+        }
+        return res.status(403).json(new PermissionError(permissions)).end();
+    };
+
+const checkPrivateProjectPermissions = () => async (req, res, next) => {
+    if (
+        !req.checkPrivateProjectPermissions ||
+        (await req.checkPrivateProjectPermissions())
+    ) {
         return next();
     }
-    if (req.checkRbac && (await req.checkRbac(permission))) {
-        return next();
-    }
-    return res.status(403).json(new NoAccessError(permission)).end();
+    return res.status(404).end();
 };
 
 /**
@@ -91,13 +108,19 @@ export default class Controller {
     route(options: IRouteOptions): void {
         this.app[options.method](
             options.path,
+            storeRequestedRoute,
             checkPermission(options.permission),
+            checkPrivateProjectPermissions(),
             this.useContentTypeMiddleware(options),
             this.useRouteErrorHandler(options.handler.bind(this)),
         );
     }
 
-    get(path: string, handler: IRequestHandler, permission?: string): void {
+    get(
+        path: string,
+        handler: IRequestHandler,
+        permission: Permission = NONE,
+    ): void {
         this.route({
             method: 'get',
             path,
@@ -109,7 +132,7 @@ export default class Controller {
     post(
         path: string,
         handler: IRequestHandler,
-        permission: string,
+        permission: Permission = NONE,
         ...acceptedContentTypes: string[]
     ): void {
         this.route({
@@ -124,7 +147,7 @@ export default class Controller {
     put(
         path: string,
         handler: IRequestHandler,
-        permission: string,
+        permission: Permission = NONE,
         ...acceptedContentTypes: string[]
     ): void {
         this.route({
@@ -139,7 +162,7 @@ export default class Controller {
     patch(
         path: string,
         handler: IRequestHandler,
-        permission: string,
+        permission: Permission = NONE,
         ...acceptedContentTypes: string[]
     ): void {
         this.route({
@@ -151,7 +174,11 @@ export default class Controller {
         });
     }
 
-    delete(path: string, handler: IRequestHandler, permission: string): void {
+    delete(
+        path: string,
+        handler: IRequestHandler,
+        permission: Permission = NONE,
+    ): void {
         this.route({
             method: 'delete',
             path,
@@ -165,11 +192,13 @@ export default class Controller {
         path: string,
         filehandler: IRequestHandler,
         handler: Function,
-        permission: string,
+        permission: Permission = NONE,
     ): void {
         this.app.post(
             path,
+            storeRequestedRoute,
             checkPermission(permission),
+            checkPrivateProjectPermissions(),
             filehandler.bind(this),
             this.useRouteErrorHandler(handler.bind(this)),
         );
@@ -179,7 +208,11 @@ export default class Controller {
         this.app.use(path, router);
     }
 
-    get router(): any {
+    useWithMiddleware(path: string, router: IRouter, middleware: any): void {
+        this.app.use(path, middleware, router);
+    }
+
+    get router(): IRouter {
         return this.app;
     }
 }

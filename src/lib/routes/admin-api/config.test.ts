@@ -1,4 +1,4 @@
-import supertest from 'supertest';
+import supertest, { type Test } from 'supertest';
 import { createTestConfig } from '../../../test/config/test-config';
 
 import createStores from '../../../test/fixtures/store';
@@ -8,6 +8,8 @@ import {
     DEFAULT_SEGMENT_VALUES_LIMIT,
     DEFAULT_STRATEGY_SEGMENTS_LIMIT,
 } from '../../util/segments';
+import type TestAgent from 'supertest/lib/agent';
+import type { IUnleashStores } from '../../types';
 
 const uiConfig = {
     headerBackground: 'red',
@@ -27,28 +29,20 @@ async function getSetup() {
 
     return {
         base,
+        stores,
         request: supertest(app),
-        destroy: () => {
-            services.versionService.destroy();
-            services.clientInstanceService.destroy();
-            services.apiTokenService.destroy();
-        },
     };
 }
 
-let request;
-let base;
-let destroy;
+let request: TestAgent<Test>;
+let base: string;
+let stores: IUnleashStores;
 
 beforeEach(async () => {
     const setup = await getSetup();
     request = setup.request;
     base = setup.base;
-    destroy = setup.destroy;
-});
-
-afterEach(() => {
-    destroy();
+    stores = setup.stores;
 });
 
 test('should get ui config', async () => {

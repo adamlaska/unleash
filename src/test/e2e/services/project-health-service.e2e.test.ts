@@ -1,20 +1,16 @@
-import dbInit, { ITestDb } from '../helpers/database-init';
+import dbInit, { type ITestDb } from '../helpers/database-init';
 import getLogger from '../../fixtures/no-logger';
-import FeatureToggleService from '../../../lib/services/feature-toggle-service';
-import { AccessService } from '../../../lib/services/access-service';
-import ProjectService from '../../../lib/services/project-service';
 import ProjectHealthService from '../../../lib/services/project-health-service';
 import { createTestConfig } from '../../config/test-config';
-import { IUnleashStores } from '../../../lib/types';
-import { IUser } from '../../../lib/server-impl';
-import { SegmentService } from '../../../lib/services/segment-service';
+import { type IUnleashStores, TEST_AUDIT_USER } from '../../../lib/types';
+import type { IUser } from '../../../lib/server-impl';
+import { createProjectService } from '../../../lib/features';
+import type { ProjectService } from '../../../lib/services';
 
 let stores: IUnleashStores;
 let db: ITestDb;
-let projectService;
-let accessService;
-let projectHealthService;
-let featureToggleService;
+let projectService: ProjectService;
+let projectHealthService: ProjectHealthService;
 let user: IUser;
 
 beforeAll(async () => {
@@ -25,22 +21,11 @@ beforeAll(async () => {
         name: 'Some Name',
         email: 'test@getunleash.io',
     });
-    accessService = new AccessService(stores, config);
-    featureToggleService = new FeatureToggleService(
-        stores,
-        config,
-        new SegmentService(stores, config),
-    );
-    projectService = new ProjectService(
-        stores,
-        config,
-        accessService,
-        featureToggleService,
-    );
+    projectService = createProjectService(db.rawDatabase, config);
     projectHealthService = new ProjectHealthService(
         stores,
         config,
-        featureToggleService,
+        projectService,
     );
 });
 
@@ -53,20 +38,25 @@ test('Project with no stale toggles should have 100% health rating', async () =>
         name: 'Health rating',
         description: 'Fancy',
     };
-    const savedProject = await projectService.createProject(project, user);
+    const savedProject = await projectService.createProject(
+        project,
+        user,
+        TEST_AUDIT_USER,
+    );
     await stores.featureToggleStore.create('health-rating', {
         name: 'health-rating-not-stale',
         description: 'new',
         stale: false,
+        createdByUserId: 9999,
     });
     await stores.featureToggleStore.create('health-rating', {
         name: 'health-rating-not-stale-2',
         description: 'new too',
         stale: false,
+        createdByUserId: 9999,
     });
-    const rating = await projectHealthService.calculateHealthRating(
-        savedProject,
-    );
+    const rating =
+        await projectHealthService.calculateHealthRating(savedProject);
     expect(rating).toBe(100);
 });
 
@@ -76,30 +66,37 @@ test('Project with two stale toggles and two non stale should have 50% health ra
         name: 'Health rating',
         description: 'Fancy',
     };
-    const savedProject = await projectService.createProject(project, user);
+    const savedProject = await projectService.createProject(
+        project,
+        user,
+        TEST_AUDIT_USER,
+    );
     await stores.featureToggleStore.create('health-rating-2', {
         name: 'health-rating-2-not-stale',
         description: 'new',
         stale: false,
+        createdByUserId: 9999,
     });
     await stores.featureToggleStore.create('health-rating-2', {
         name: 'health-rating-2-not-stale-2',
         description: 'new too',
         stale: false,
+        createdByUserId: 9999,
     });
     await stores.featureToggleStore.create('health-rating-2', {
         name: 'health-rating-2-stale-1',
         description: 'stale',
         stale: true,
+        createdByUserId: 9999,
     });
     await stores.featureToggleStore.create('health-rating-2', {
         name: 'health-rating-2-stale-2',
         description: 'stale too',
         stale: true,
+        createdByUserId: 9999,
     });
-    const rating = await projectHealthService.calculateHealthRating(
-        savedProject,
-    );
+    const rating =
+        await projectHealthService.calculateHealthRating(savedProject);
     expect(rating).toBe(50);
 });
 
@@ -109,11 +106,16 @@ test('Project with one non-stale, one potentially stale and one stale should hav
         name: 'Health rating',
         description: 'Fancy',
     };
-    const savedProject = await projectService.createProject(project, user);
+    const savedProject = await projectService.createProject(
+        project,
+        user,
+        TEST_AUDIT_USER,
+    );
     await stores.featureToggleStore.create('health-rating-3', {
         name: 'health-rating-3-not-stale',
         description: 'new',
         stale: false,
+        createdByUserId: 9999,
     });
     await stores.featureToggleStore.create('health-rating-3', {
         name: 'health-rating-3-potentially-stale',
@@ -121,14 +123,15 @@ test('Project with one non-stale, one potentially stale and one stale should hav
         type: 'release',
         stale: false,
         createdAt: new Date(Date.UTC(2020, 1, 1)),
+        createdByUserId: 9999,
     });
     await stores.featureToggleStore.create('health-rating-3', {
         name: 'health-rating-3-stale',
         description: 'stale',
         stale: true,
+        createdByUserId: 9999,
     });
-    const rating = await projectHealthService.calculateHealthRating(
-        savedProject,
-    );
+    const rating =
+        await projectHealthService.calculateHealthRating(savedProject);
     expect(rating).toBe(33);
 });

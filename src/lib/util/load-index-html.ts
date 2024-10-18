@@ -1,5 +1,5 @@
 import fs from 'fs';
-import { IUnleashConfig } from '../server-impl';
+import type { IUnleashConfig } from '../server-impl';
 import { rewriteHTML } from './rewriteHTML';
 import path from 'path';
 import fetch from 'make-fetch-happen';
@@ -9,6 +9,7 @@ export async function loadIndexHTML(
     publicFolder: string,
 ): Promise<string> {
     const { cdnPrefix, baseUriPath = '' } = config.server;
+    const uiFlags = encodeURI(JSON.stringify(config.ui.flags || '{}'));
 
     let indexHTML: string;
     if (cdnPrefix) {
@@ -16,9 +17,11 @@ export async function loadIndexHTML(
         indexHTML = await res.text();
     } else {
         indexHTML = fs
-            .readFileSync(path.join(publicFolder, 'index.html'))
+            .readFileSync(
+                path.join(config.publicFolder || publicFolder, 'index.html'),
+            )
             .toString();
     }
 
-    return rewriteHTML(indexHTML, baseUriPath, cdnPrefix);
+    return rewriteHTML(indexHTML, baseUriPath, cdnPrefix, uiFlags);
 }

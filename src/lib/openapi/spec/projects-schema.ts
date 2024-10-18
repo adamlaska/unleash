@@ -1,4 +1,4 @@
-import { FromSchema } from 'json-schema-to-ts';
+import type { FromSchema } from 'json-schema-to-ts';
 import { projectSchema } from './project-schema';
 
 export const projectsSchema = {
@@ -6,15 +6,20 @@ export const projectsSchema = {
     type: 'object',
     additionalProperties: false,
     required: ['version', 'projects'],
+    description: 'An overview of all the projects in the Unleash instance',
     properties: {
         version: {
             type: 'integer',
+            description:
+                'The schema version used to represent the project data.',
+            example: 1,
         },
         projects: {
             type: 'array',
             items: {
                 $ref: '#/components/schemas/projectSchema',
             },
+            description: 'A list of projects in the Unleash instance',
         },
     },
     components: {

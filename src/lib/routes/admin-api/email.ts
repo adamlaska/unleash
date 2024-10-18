@@ -1,10 +1,14 @@
 import { ADMIN } from '../../types/permissions';
-import { EmailService, TemplateFormat } from '../../services/email-service';
-import { IUnleashConfig } from '../../types/option';
-import { IUnleashServices } from '../../types/services';
-import { Request, Response } from 'express';
+import {
+    type EmailService,
+    TemplateFormat,
+} from '../../services/email-service';
+import type { IUnleashConfig } from '../../types/option';
+import type { IUnleashServices } from '../../types/services';
+import type { Request, Response } from 'express';
 import Controller from '../controller';
-import { Logger } from '../../logger';
+import type { Logger } from '../../logger';
+import sanitize from 'sanitize-filename';
 
 export default class EmailController extends Controller {
     private emailService: EmailService;
@@ -26,7 +30,7 @@ export default class EmailController extends Controller {
         const { template } = req.params;
         const ctx = req.query;
         const data = await this.emailService.compileTemplate(
-            template,
+            sanitize(template),
             TemplateFormat.HTML,
             ctx,
         );
@@ -40,7 +44,7 @@ export default class EmailController extends Controller {
         const { template } = req.params;
         const ctx = req.query;
         const data = await this.emailService.compileTemplate(
-            template,
+            sanitize(template),
             TemplateFormat.PLAIN,
             ctx,
         );

@@ -1,14 +1,16 @@
-import { FromSchema } from 'json-schema-to-ts';
+import type { FromSchema } from 'json-schema-to-ts';
 import { tagTypeSchema } from './tag-type-schema';
 
 export const validateTagTypeSchema = {
     $id: '#/components/schemas/validateTagTypeSchema',
     type: 'object',
-    additionalProperties: false,
     required: ['valid', 'tagType'],
+    description: 'The result of validating a tag type.',
     properties: {
         valid: {
             type: 'boolean',
+            description: 'Whether or not the tag type is valid.',
+            example: true,
         },
         tagType: {
             $ref: '#/components/schemas/tagTypeSchema',

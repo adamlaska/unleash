@@ -1,5 +1,5 @@
 import { validateSchema } from '../validate';
-import { ContextFieldSchema } from './context-field-schema';
+import type { ContextFieldSchema } from './context-field-schema';
 
 test('contextFieldSchema', () => {
     const data: ContextFieldSchema = {
@@ -8,7 +8,11 @@ test('contextFieldSchema', () => {
         stickiness: false,
         sortOrder: 0,
         createdAt: '2022-01-01T00:00:00.000Z',
-        legalValues: [],
+        legalValues: [
+            { value: 'a' },
+            { value: 'b', description: '' },
+            { value: 'c', description: 'd' },
+        ],
     };
 
     expect(

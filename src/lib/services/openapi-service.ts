@@ -1,17 +1,17 @@
-import openapi, { IExpressOpenApi } from '@unleash/express-openapi';
-import { Express, RequestHandler, Response } from 'express';
-import { IUnleashConfig } from '../types/option';
+import openapi, { type IExpressOpenApi } from '@wesleytodd/openapi';
+import type { Express, RequestHandler, Response } from 'express';
+import type { IUnleashConfig } from '../types/option';
 import {
-    AdminApiOperation,
-    ClientApiOperation,
-    OtherApiOperation,
     createOpenApiSchema,
-    JsonSchemaProps,
+    type JsonSchemaProps,
     removeJsonSchemaProps,
-    SchemaId,
+    type SchemaId,
 } from '../openapi';
-import { Logger } from '../logger';
+import type { ApiOperation } from '../openapi/util/api-operation';
+import type { Logger } from '../logger';
 import { validateSchema } from '../openapi/validate';
+import type { IFlagResolver } from '../types';
+import { fromOpenApiValidationErrors } from '../error/bad-data-error';
 
 export class OpenApiService {
     private readonly config: IUnleashConfig;
@@ -20,26 +20,31 @@ export class OpenApiService {
 
     private readonly api: IExpressOpenApi;
 
+    private flagResolver: IFlagResolver;
+
     constructor(config: IUnleashConfig) {
         this.config = config;
+        this.flagResolver = config.flagResolver;
         this.logger = config.getLogger('openapi-service.ts');
 
         this.api = openapi(
             this.docsPath(),
-            createOpenApiSchema(config.server?.unleashUrl),
-            { coerce: true },
+            createOpenApiSchema(config.server),
+            {
+                coerce: true,
+                extendRefs: true,
+                basePath: config.server.baseUriPath,
+            },
         );
     }
 
-    validPath(
-        op: AdminApiOperation | ClientApiOperation | OtherApiOperation,
-    ): RequestHandler {
+    validPath(op: ApiOperation): RequestHandler {
         return this.api.validPath(op);
     }
 
     useDocs(app: Express): void {
         app.use(this.api);
-        app.use(this.docsPath(), this.api.swaggerui);
+        app.use(this.docsPath(), this.api.swaggerui());
     }
 
     docsPath(): string {
@@ -57,32 +62,41 @@ export class OpenApiService {
 
     useErrorHandler(app: Express): void {
         app.use((err, req, res, next) => {
-            if (err && err.status && err.validationErrors) {
-                res.status(err.status).json({
-                    error: err.message,
-                    validation: err.validationErrors,
-                });
+            if (err?.status && err.validationErrors) {
+                const apiError = fromOpenApiValidationErrors(
+                    req,
+                    err.validationErrors,
+                );
+
+                res.status(apiError.statusCode).json(apiError);
             } else {
-                next();
+                next(err);
             }
         });
     }
 
-    respondWithValidation<T>(
+    respondWithValidation<T, S = SchemaId>(
         status: number,
         res: Response<T>,
-        schema: SchemaId,
+        schema: S,
         data: T,
+        headers: { [header: string]: string } = {},
     ): void {
-        const errors = validateSchema(schema, data);
+        const errors = validateSchema<S>(schema, data);
 
         if (errors) {
-            if (process.env.NODE_ENV === 'development') {
-                throw new Error(JSON.stringify(errors, null, 2));
-            } else {
-                this.logger.warn('Invalid response:', errors);
+            this.logger.debug(
+                'Invalid response:',
+                JSON.stringify(errors, null, 4),
+            );
+            if (this.flagResolver.isEnabled('strictSchemaValidation')) {
+                throw new Error(JSON.stringify(errors, null, 4));
             }
         }
+
+        Object.entries(headers).forEach(([header, value]) =>
+            res.header(header, value),
+        );
 
         res.status(status).json(data);
     }

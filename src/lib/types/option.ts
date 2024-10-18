@@ -1,10 +1,15 @@
-import EventEmitter from 'events';
-import { LogLevel, LogProvider } from '../logger';
-import { ILegacyApiTokenCreate } from './models/api-token';
-import { IExperimentalOptions } from '../experimental';
-import SMTPTransport from 'nodemailer/lib/smtp-transport';
-
-export type EventHook = (eventName: string, data: object) => void;
+import type { Express } from 'express';
+import type EventEmitter from 'events';
+import type { LogLevel, LogProvider } from '../logger';
+import type { ILegacyApiTokenCreate } from './models/api-token';
+import type {
+    IExperimentalOptions,
+    IFlagResolver,
+    IFlags,
+} from './experimental';
+import type SMTPTransport from 'nodemailer/lib/smtp-transport';
+import type { IUnleashServices } from './services';
+import type { ResourceLimitsSchema } from '../openapi/spec/resource-limits-schema';
 
 export interface ISSLOption {
     rejectUnauthorized: boolean;
@@ -55,34 +60,50 @@ export enum IAuthType {
     NONE = 'none',
 }
 
+export type CustomAuthHandler = (
+    app: Express,
+    config: Partial<IUnleashConfig>,
+    services?: IUnleashServices,
+) => void;
+
+export type UsernameAdminUser = {
+    username: string;
+    password: string;
+};
+
 export interface IAuthOption {
+    demoAllowAdminLogin?: boolean;
     enableApiToken: boolean;
     type: IAuthType;
-    customAuthHandler?: Function;
-    createAdminUser: boolean;
+    customAuthHandler?: CustomAuthHandler;
+    createAdminUser?: boolean;
+    initialAdminUser?: UsernameAdminUser;
     initApiTokens: ILegacyApiTokenCreate[];
 }
 
 export interface IImportOption {
     file: string;
-    keepExisting: boolean;
-    dropBeforeImport: boolean;
+    project: string;
+    environment: string;
 }
 
 export interface IServerOption {
     port?: number;
     host?: string;
     pipe?: string;
+    disableCompression?: boolean;
     keepAliveTimeout: number;
     headersTimeout: number;
     baseUriPath: string;
     cdnPrefix?: string;
     unleashUrl: string;
     serverMetrics: boolean;
+    enableHeapSnapshotEnpoint: boolean;
     enableRequestLogger: boolean;
     gracefulShutdownEnable: boolean;
     gracefulShutdownTimeout: number;
     secret: string;
+    enableScheduledCreatedByMigration: boolean;
 }
 
 export interface IClientCachingOption {
@@ -99,21 +120,43 @@ export interface IUnleashOptions {
     logLevel?: LogLevel;
     server?: Partial<IServerOption>;
     versionCheck?: Partial<IVersionOption>;
+    telemetry?: boolean;
     authentication?: Partial<IAuthOption>;
-    ui?: object;
+    ui?: IUIConfig;
+    frontendApi?: IFrontendApi;
     import?: Partial<IImportOption>;
-    experimental?: IExperimentalOptions;
+    experimental?: Partial<IExperimentalOptions>;
     email?: Partial<IEmailOption>;
     secureHeaders?: boolean;
     additionalCspAllowedDomains?: ICspDomainOptions;
+    frontendApiOrigins?: string[];
     enableOAS?: boolean;
     preHook?: Function;
     preRouterHook?: Function;
-    eventHook?: EventHook;
     enterpriseVersion?: string;
-    disableLegacyFeaturesApi?: boolean;
     inlineSegmentConstraints?: boolean;
     clientFeatureCaching?: Partial<IClientCachingOption>;
+    accessControlMaxAge?: number;
+    prometheusApi?: string;
+    publicFolder?: string;
+    disableScheduler?: boolean;
+    metricsRateLimiting?: Partial<IMetricsRateLimiting>;
+    dailyMetricsStorageDays?: number;
+    rateLimiting?: Partial<IRateLimiting>;
+    resourceLimits?: Partial<
+        Pick<
+            ResourceLimitsSchema,
+            | 'apiTokens'
+            | 'constraintValues'
+            | 'constraints'
+            | 'environments'
+            | 'featureEnvironmentStrategies'
+            | 'featureFlags'
+            | 'projects'
+            | 'segments'
+        >
+    >;
+    userInactivityThresholdInDays?: number;
 }
 
 export interface IEmailOption {
@@ -136,17 +179,16 @@ export interface IListeningHost {
 }
 
 export interface IUIConfig {
+    environment?: string;
     slogan?: string;
     name?: string;
-    flags?: { [key: string]: boolean };
-    links?: [
-        {
-            value: string;
-            icon?: string;
-            href: string;
-            title: string;
-        },
-    ];
+    links?: {
+        value: string;
+        icon?: string;
+        href: string;
+        title: string;
+    }[];
+    flags?: IFlags;
 }
 
 export interface ICspDomainOptions {
@@ -155,6 +197,10 @@ export interface ICspDomainOptions {
     styleSrc?: string[];
     scriptSrc?: string[];
     imgSrc?: string[];
+    connectSrc?: string[];
+    frameSrc?: string[];
+    objectSrc?: string[];
+    mediaSrc?: string[];
 }
 
 export interface ICspDomainConfig {
@@ -163,6 +209,28 @@ export interface ICspDomainConfig {
     styleSrc: string[];
     scriptSrc: string[];
     imgSrc: string[];
+    connectSrc: string[];
+    frameSrc: string[];
+    objectSrc: string[];
+    mediaSrc: string[];
+}
+
+interface IFrontendApi {
+    refreshIntervalInMs: number;
+}
+
+export interface IMetricsRateLimiting {
+    clientMetricsMaxPerMinute: number;
+    clientRegisterMaxPerMinute: number;
+    frontendMetricsMaxPerMinute: number;
+    frontendRegisterMaxPerMinute: number;
+}
+
+export interface IRateLimiting {
+    createUserMaxPerMinute: number;
+    simpleLoginMaxPerMinute: number;
+    passwordResetMaxPerMinute: number;
+    callSignalEndpointMaxPerSecond: number;
 }
 
 export interface IUnleashConfig {
@@ -172,23 +240,40 @@ export interface IUnleashConfig {
     server: IServerOption;
     listen: IListeningHost | IListeningPipe;
     versionCheck: IVersionOption;
+    telemetry: boolean;
     authentication: IAuthOption;
     ui: IUIConfig;
     import: IImportOption;
     experimental?: IExperimentalOptions;
+    flagResolver: IFlagResolver;
     email: IEmailOption;
     secureHeaders: boolean;
     additionalCspAllowedDomains: ICspDomainConfig;
+    frontendApiOrigins: string[];
     enableOAS: boolean;
     preHook?: Function;
     preRouterHook?: Function;
-    eventHook?: EventHook;
+    shutdownHook?: Function;
     enterpriseVersion?: string;
     eventBus: EventEmitter;
-    disableLegacyFeaturesApi?: boolean;
     environmentEnableOverrides?: string[];
+    frontendApi: IFrontendApi;
     inlineSegmentConstraints: boolean;
+    /** @deprecated: use resourceLimits.segmentValues */
     segmentValuesLimit: number;
+    /** @deprecated: use resourceLimits.strategySegments */
     strategySegmentsLimit: number;
+    resourceLimits: ResourceLimitsSchema;
+    metricsRateLimiting: IMetricsRateLimiting;
+    dailyMetricsStorageDays: number;
     clientFeatureCaching: IClientCachingOption;
+    accessControlMaxAge: number;
+    prometheusApi?: string;
+    publicFolder?: string;
+    disableScheduler?: boolean;
+    isEnterprise: boolean;
+    rateLimiting: IRateLimiting;
+    feedbackUriPath?: string;
+    openAIAPIKey?: string;
+    userInactivityThresholdInDays: number;
 }

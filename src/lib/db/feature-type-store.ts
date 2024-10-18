@@ -1,9 +1,9 @@
-import { Knex } from 'knex';
-import { Logger, LogProvider } from '../logger';
-import {
+import type { Logger, LogProvider } from '../logger';
+import type {
     IFeatureType,
     IFeatureTypeStore,
 } from '../types/stores/feature-type-store';
+import type { Db } from './db';
 
 const COLUMNS = ['id', 'name', 'description', 'lifetime_days'];
 const TABLE = 'feature_types';
@@ -16,11 +16,11 @@ interface IFeatureTypeRow {
 }
 
 class FeatureTypeStore implements IFeatureTypeStore {
-    private db: Knex;
+    private db: Db;
 
     private logger: Logger;
 
-    constructor(db: Knex, getLogger: LogProvider) {
+    constructor(db: Db, getLogger: LogProvider) {
         this.db = db;
         this.logger = getLogger('feature-type-store.ts');
     }
@@ -39,9 +39,9 @@ class FeatureTypeStore implements IFeatureTypeStore {
         };
     }
 
-    async get(id: string): Promise<IFeatureType | undefined> {
+    async get(id: string): Promise<IFeatureType> {
         const row = await this.db(TABLE).where({ id }).first();
-        return this.rowToFeatureType(row);
+        return row ? this.rowToFeatureType(row) : row;
     }
 
     async getByName(name: string): Promise<IFeatureType> {
@@ -66,6 +66,22 @@ class FeatureTypeStore implements IFeatureTypeStore {
         );
         const { present } = result.rows[0];
         return present;
+    }
+
+    async updateLifetime(
+        id: string,
+        newLifetimeDays: number | null,
+    ): Promise<IFeatureType | undefined> {
+        const [updatedType] = await this.db(TABLE)
+            .update({ lifetime_days: newLifetimeDays })
+            .where({ id })
+            .returning(['*']);
+
+        if (updatedType) {
+            return this.rowToFeatureType(updatedType);
+        } else {
+            return undefined;
+        }
     }
 }
 export default FeatureTypeStore;
