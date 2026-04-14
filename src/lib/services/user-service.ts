@@ -230,12 +230,6 @@ export class UserService {
             }));
         }
 
-        const { readOnlyUsers } =
-            await this.resourceLimitsService.getResourceLimits();
-        if (!this.flagResolver.isEnabled('readOnlyUsersUI') || !readOnlyUsers) {
-            users = users.map(({ seatType, ...user }) => user);
-        }
-
         return users;
     }
 

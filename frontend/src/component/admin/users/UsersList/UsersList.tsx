@@ -45,11 +45,7 @@ import { AccessRequestsTable } from './AccessRequestsTable/AccessRequestsTable.t
 
 const UsersList = () => {
     const navigate = useNavigate();
-    const {
-        isEnterprise,
-        isOss,
-        uiConfig: { resourceLimits },
-    } = useUiConfig();
+    const { isEnterprise, isOss } = useUiConfig();
     const { users, roles, refetch, loading } = useUsers();
     const { setToastData, setToastApiError } = useToast();
     const { removeUser, userLoading, userApiErrors } = useAdminUsersApi();
@@ -66,9 +62,6 @@ const UsersList = () => {
     const showUserDeviceCount = useUiFlag('showUserDeviceCount');
     const showAccessRequests = useUiFlag('pendingUserAccessRequests');
     const showSSOUpgrade = isOss() && users.length > 3;
-
-    const showSeatTypes =
-        useUiFlag('readOnlyUsersUI') && resourceLimits.readOnlyUsers;
 
     const {
         settings: { enabled: scimEnabled },
@@ -210,14 +203,6 @@ const UsersList = () => {
                 sortType: 'boolean',
             },
             {
-                id: 'seatType',
-                Header: 'Seat type',
-                accessor: 'seatType',
-                maxWidth: 100,
-                sortType: 'boolean',
-                Cell: TextCell,
-            },
-            {
                 Header: '',
                 id: 'Actions',
                 align: 'center',
@@ -256,7 +241,7 @@ const UsersList = () => {
                 searchable: true,
             },
         ],
-        [roles, navigate, isBillingUsers, showSeatTypes],
+        [roles, navigate, isBillingUsers],
     );
 
     const initialState = useMemo(() => {
@@ -266,10 +251,9 @@ const UsersList = () => {
                 'username',
                 'email',
                 ...(isBillingUsers ? [] : ['type']),
-                ...(showSeatTypes ? [] : ['seatType']),
             ],
         };
-    }, [isBillingUsers, showSeatTypes]);
+    }, [isBillingUsers]);
 
     const { data, getSearchText } = useSearch(
         columns,
@@ -300,10 +284,6 @@ const UsersList = () => {
             {
                 condition: !isBillingUsers || isSmallScreen,
                 columns: ['type'],
-            },
-            {
-                condition: !showSeatTypes || isSmallScreen,
-                columns: ['seatType'],
             },
             {
                 condition: isExtraSmallScreen,
