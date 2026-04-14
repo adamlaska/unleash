@@ -57,6 +57,7 @@ export type IFlagKey =
     | 'consumptionModelUI'
     | 'customMetrics'
     | 'impactMetrics'
+    | 'registerImpactMetrics'
     | 'etagByEnv'
     | 'fetchMode'
     | 'optimizeLifecycle'
@@ -260,6 +261,10 @@ const flags: IFlags = {
     ),
     impactMetrics: parseEnvVarBoolean(
         process.env.UNLEASH_EXPERIMENTAL_IMPACT_METRICS,
+        false,
+    ),
+    registerImpactMetrics: parseEnvVarBoolean(
+        process.env.UNLEASH_EXPERIMENTAL_REGISTER_IMPACT_METRICS,
         false,
     ),
     streaming: {
