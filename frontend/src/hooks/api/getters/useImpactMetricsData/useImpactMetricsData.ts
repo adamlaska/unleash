@@ -22,30 +22,27 @@ export type ImpactMetricsResponse = Omit<ImpactMetricsDataSchema, 'series'> & {
 };
 
 export type ImpactMetricsQuery = {
-    series: string;
+    metricName: string;
     range: 'hour' | 'day' | 'week' | 'month';
-    labels?: Record<string, string[]>;
     aggregationMode?: 'rps' | 'count' | 'avg' | 'sum' | 'p50' | 'p95' | 'p99';
     source?: MetricSource;
+    labels?: Record<string, string[]>;
 };
 
+const DEFAULT_AGGREGATION_MODE = 'count';
+const DEFAULT_SOURCE: MetricSource = 'internal';
+
 export const useImpactMetricsData = (query?: ImpactMetricsQuery) => {
-    const shouldFetch = Boolean(query?.series && query?.range);
+    const shouldFetch = Boolean(query?.metricName && query?.range);
 
     const createPath = () => {
         if (!query) return '';
         const params = new URLSearchParams({
-            series: query.series,
+            metricName: query.metricName,
             range: query.range,
+            aggregationMode: query.aggregationMode ?? DEFAULT_AGGREGATION_MODE,
+            source: query.source ?? DEFAULT_SOURCE,
         });
-
-        if (query.aggregationMode !== undefined) {
-            params.append('aggregationMode', query.aggregationMode);
-        }
-
-        if (query.source) {
-            params.append('source', query.source);
-        }
 
         if (query.labels && Object.keys(query.labels).length > 0) {
             // Send labels as they are - the backend will handle the formatting
