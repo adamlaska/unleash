@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [7.6.3] - 2026-04-15
+
+### Features
+
+- Setup ff for multimetric ([#11825](https://github.com/Unleash/unleash/issues/11825))
+
+
+### Miscellaneous Tasks
+
+- Make helper text and label red if your input is invalid ([#11823](https://github.com/Unleash/unleash/issues/11823))
+
+- Update text to point out we're using node 22, not 20 ([#11824](https://github.com/Unleash/unleash/issues/11824))
+
+- Run apk upgrade ([#11826](https://github.com/Unleash/unleash/issues/11826))
+
+
 ## [7.6.2] - 2026-04-15
 
 ### Bug Fixes
