@@ -2,6 +2,81 @@
 
 All notable changes to this project will be documented in this file.
 
+## [7.6.2] - 2026-04-15
+
+### Bug Fixes
+
+- Move clicked docs funnel event from sidebar to MetricSelector ([#11773](https://github.com/Unleash/unleash/issues/11773))
+
+- Stringify on null in crs ([#11786](https://github.com/Unleash/unleash/issues/11786))
+
+- Stringify on null in crs ([#11790](https://github.com/Unleash/unleash/issues/11790))
+
+- Duplicate handling impact metric options ([#11796](https://github.com/Unleash/unleash/issues/11796))
+
+- Update dependency tldts to v7.0.28 ([#11802](https://github.com/Unleash/unleash/issues/11802))
+
+
+### Features
+
+- Reinitialize delta on malformed/unexpected events ([#11767](https://github.com/Unleash/unleash/issues/11767))
+
+- Wire access request rejection to backend ([#11783](https://github.com/Unleash/unleash/issues/11783))
+
+- Group internal and external impact metrics ([#11785](https://github.com/Unleash/unleash/issues/11785))
+
+- Smarter orphan metrics ([#11794](https://github.com/Unleash/unleash/issues/11794))
+
+- Use the newer json diff instead of the old, manual diff table for overwrite warnings. ([#11797](https://github.com/Unleash/unleash/issues/11797))
+
+- Add connect SDK banner on feature flag overview ([#11806](https://github.com/Unleash/unleash/issues/11806))
+
+- Avoid fetching labels for display mode ([#11812](https://github.com/Unleash/unleash/issues/11812))
+
+
+### Miscellaneous Tasks
+
+- Update orval ([#11779](https://github.com/Unleash/unleash/issues/11779))
+
+- Upgrade axios ([#11793](https://github.com/Unleash/unleash/issues/11793))
+
+- Don't diff sort order for strategies ([#11798](https://github.com/Unleash/unleash/issues/11798))
+
+- Add `registerImpactMetrics` feature flag ([#11809](https://github.com/Unleash/unleash/issues/11809))
+
+- Remove newLogin flag and keep new login UI ([#11810](https://github.com/Unleash/unleash/issues/11810))
+
+- Remove newSignOut flag ([#11807](https://github.com/Unleash/unleash/issues/11807))
+
+- Remove read-only-users-ui flag ([#11814](https://github.com/Unleash/unleash/issues/11814))
+
+- ExternalPrometheusImpactMetrics flag cleanup ([#11819](https://github.com/Unleash/unleash/issues/11819))
+
+- Add `useRegisterImpactMetricApi` hook ([#11817](https://github.com/Unleash/unleash/issues/11817))
+
+- FeatureEnvSafeguards flag cleanup ([#11821](https://github.com/Unleash/unleash/issues/11821))
+
+- Initial version of impact metric registration form ([#11813](https://github.com/Unleash/unleash/issues/11813))
+
+- Upgrade zlib in Dockerfile ([#11822](https://github.com/Unleash/unleash/issues/11822))
+
+
+### Refactor
+
+- Extract safeguards outside release plans ([#11780](https://github.com/Unleash/unleash/issues/11780))
+
+- Impact metrics metadata returns list of options ([#11795](https://github.com/Unleash/unleash/issues/11795))
+
+- Use orval impact metrics schema ([#11808](https://github.com/Unleash/unleash/issues/11808))
+
+- Use metric name instead of series ([#11811](https://github.com/Unleash/unleash/issues/11811))
+
+
+### Testing
+
+- Impact metrics modal ([#11784](https://github.com/Unleash/unleash/issues/11784))
+
+
 ## [7.6.1] - 2026-04-09
 
 ### Miscellaneous Tasks
