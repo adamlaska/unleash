@@ -67,6 +67,12 @@ const StyledExpandedContent = styled('div')(({ theme }) => ({
     backgroundColor: theme.palette.background.elevation2,
 }));
 
+const StyledEmptyDescription = styled(Typography)(({ theme }) => ({
+    fontSize: theme.fontSizes.smallBody,
+    color: theme.palette.text.secondary,
+    maxWidth: '100%',
+}));
+
 const StyledChartRow = styled('div')(({ theme }) => ({
     display: 'grid',
     gridTemplateColumns: 'repeat(3, 1fr)',
@@ -77,12 +83,6 @@ const StyledChartRow = styled('div')(({ theme }) => ({
     [theme.breakpoints.down('sm')]: {
         gridTemplateColumns: '1fr',
     },
-}));
-
-const StyledEmptyDescription = styled(Typography)(({ theme }) => ({
-    fontSize: theme.fontSizes.smallBody,
-    color: theme.palette.text.secondary,
-    maxWidth: '100%',
 }));
 
 const StyledConnectButton = styled(Button)({
