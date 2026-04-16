@@ -1,8 +1,7 @@
 import { Typography, styled } from '@mui/material';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import LightbulbOutlinedIcon from '@mui/icons-material/LightbulbOutlined';
-import OpenInNewIcon from '@mui/icons-material/OpenInNew';
-import { Link } from 'react-router-dom';
+import { ExternalLink } from './RegisterMetricDialog.styles';
 
 const SidebarSection = styled('article')(({ theme }) => ({
     '--vertical-spacing': theme.spacing(1.5),
@@ -26,34 +25,6 @@ const Header = styled('div')(({ theme }) => ({
     gap: theme.spacing(1),
     marginBlockEnd: theme.spacing(2),
 }));
-
-const StyledLink = styled(Link)(({ theme }) => ({
-    textDecoration: 'underline',
-    color: 'inherit',
-    display: 'flex',
-    alignItems: 'center',
-    gap: theme.spacing(1),
-    fontSize: 'body2.fontSize',
-    width: 'fit-content',
-    borderRadius: theme.shape.borderRadius,
-
-    ':focus-visible': {
-        outline: `2px solid currentColor`,
-        outlineOffset: theme.spacing(0.5),
-    },
-
-    svg: {
-        fontSize: '20px',
-    },
-}));
-
-const SidebarLink = ({ to, children }) => {
-    return (
-        <StyledLink target='_blank' rel='noopener noreferrer' to={to}>
-            {children} <OpenInNewIcon />
-        </StyledLink>
-    );
-};
 
 export const MetricDefinitionSidebar = () => {
     return (
@@ -97,9 +68,9 @@ export const MetricDefinitionSidebar = () => {
             </SidebarSection>
 
             <div>
-                <SidebarLink to='https://docs.getunleash.io/reference/impact-metrics'>
+                <ExternalLink to='https://docs.getunleash.io/reference/impact-metrics'>
                     View full documentation
-                </SidebarLink>
+                </ExternalLink>
             </div>
         </>
     );
