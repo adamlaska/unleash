@@ -37,8 +37,11 @@ const StyledLabel = styled(FormLabel)(({ theme }) => ({
 const RadioCardContainer = styled(Card)(({ theme }) => ({
     display: 'flex',
     alignItems: 'flex-start',
-    gap: '11px',
     background: theme.palette.background.default,
+    paddingInlineStart: theme.spacing(0.5),
+    '.MuiRadio-root': {
+        marginBlockStart: `calc(-1 * ${theme.spacing(1.5)})`,
+    },
 }));
 
 const RadioCard = ({ value, description, examples }) => {
@@ -49,7 +52,6 @@ const RadioCard = ({ value, description, examples }) => {
     return (
         <RadioCardContainer>
             <Radio
-                sx={{ padding: 0 }}
                 id={radioId}
                 value={value}
                 aria-describedby={`${descriptionId} ${exampleId}`}
