@@ -31,6 +31,9 @@ const StyledForm = styled('form')(({ theme }) => ({
 
 const StyledLabel = styled(FormLabel)(({ theme }) => ({
     color: theme.palette.text.primary,
+    '&.Mui-focused': {
+        color: 'currentColor',
+    },
     marginBottom: theme.spacing(1),
 }));
 
