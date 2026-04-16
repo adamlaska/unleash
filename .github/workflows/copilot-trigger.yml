@@ -12,6 +12,6 @@ jobs:
     steps:
       - name: Assign Copilot Agent
         run: |
-          gh issue edit ${{ github.event.issue.number }} --add-assignee "@copilot"
+          gh issue edit ${{ github.event.issue.number }} --repo ${{ github.repository }} --add-assignee "@copilot"
         env:
           GH_TOKEN: ${{ secrets.COPILOT_TRIGGER_TOKEN }}
