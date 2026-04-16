@@ -1,0 +1,17 @@
+name: Trigger Copilot on Label
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  assign-copilot:
+    if: github.event.label.name == 'copilot'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Assign Copilot Agent
+        run: |
+          gh issue edit ${{ github.event.issue.number }} --add-assignee "@copilot"
+        env:
+          GH_TOKEN: ${{ secrets.COPILOT_TRIGGER_TOKEN }}
