@@ -10,12 +10,16 @@ import {
     useMediaQuery,
     useTheme,
 } from '@mui/material';
+import CheckIcon from '@mui/icons-material/Check';
 import { Markdown } from 'component/common/Markdown/Markdown';
 import {
     CodeRenderer,
     codeRenderSnippets,
 } from 'component/onboarding/dialog/CodeRenderer';
 import { allSdks, type SdkName } from 'component/onboarding/dialog/sharedTypes';
+import { buildSdkApiUrl } from 'component/onboarding/dialog/buildSdkApiUrl';
+import useFeatureMetrics from 'hooks/api/getters/useFeatureMetrics/useFeatureMetrics';
+import useUiConfig from 'hooks/api/getters/useUiConfig/useUiConfig';
 import { ImplementFlagInformation } from './ImplementFlagInformation.tsx';
 import { buildFlagUsageSnippet } from './buildFlagUsageSnippet.ts';
 
@@ -71,17 +75,21 @@ const Footer = styled('div')(({ theme }) => ({
     padding: theme.spacing(2, 3),
 }));
 
-const WaitingIndicator = styled('div')(({ theme }) => ({
+const StatusIndicator = styled('div')(({ theme }) => ({
     display: 'flex',
     alignItems: 'center',
     gap: theme.spacing(0.5),
 }));
 
-const WaitingDot = styled('span')(({ theme }) => ({
+const StatusDot = styled('span', {
+    shouldForwardProp: (prop) => prop !== 'connected',
+})<{ connected?: boolean }>(({ theme, connected }) => ({
     width: 6,
     height: 6,
     borderRadius: '50%',
-    backgroundColor: theme.palette.warning.main,
+    backgroundColor: connected
+        ? theme.palette.success.main
+        : theme.palette.warning.main,
 }));
 
 const CodeBlockWrapper = styled('div')(({ theme }) => ({
@@ -105,6 +113,7 @@ const ListeningIcon = styled('div')(({ theme }) => ({
     height: 44,
     borderRadius: '50%',
     backgroundColor: theme.palette.primary.main,
+    color: theme.palette.primary.contrastText,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -140,116 +149,155 @@ const ListeningText = styled('div')({
     flexDirection: 'column',
 });
 
+const ListeningStatus = ({ evaluated }: { evaluated: boolean }) => (
+    <ListeningCard>
+        <ListeningIcon>
+            {evaluated ? (
+                <CheckIcon />
+            ) : (
+                <>
+                    <span />
+                    <span />
+                    <span />
+                </>
+            )}
+        </ListeningIcon>
+        <ListeningText>
+            <Typography variant='body2' fontWeight='bold' color='primary'>
+                {evaluated
+                    ? 'Got the first evaluation!'
+                    : 'Listening for the first evaluation…'}
+            </Typography>
+            <Typography variant='caption' color='primary'>
+                {evaluated
+                    ? 'Your flag is wired up. Finish setup to close this dialog.'
+                    : 'Render the code path above anywhere to check that we receive metric evaluations.'}
+            </Typography>
+        </ListeningText>
+    </ListeningCard>
+);
+
 interface ImplementFlagDialogProps {
     open: boolean;
     onClose: () => void;
+    projectId: string;
     feature: string;
 }
 
 export const ImplementFlagDialog = ({
     open,
     onClose,
+    projectId,
     feature,
-}: ImplementFlagDialogProps) => {
+}: ImplementFlagDialogProps) => (
+    <StyledDialog open={open} onClose={onClose}>
+        {open && (
+            <DialogBody
+                projectId={projectId}
+                feature={feature}
+                onClose={onClose}
+            />
+        )}
+    </StyledDialog>
+);
+
+interface DialogBodyProps {
+    projectId: string;
+    feature: string;
+    onClose: () => void;
+}
+
+const DialogBody = ({ projectId, feature, onClose }: DialogBodyProps) => {
     const theme = useTheme();
     const isLargeScreen = useMediaQuery(theme.breakpoints.up('lg'));
     const [sdkName, setSdkName] = useState<SdkName>(allSdks[0].name);
 
+    const { metrics } = useFeatureMetrics(projectId, feature, {
+        refreshInterval: 1000,
+    });
+    const evaluated = metrics.seenApplications.length > 0;
+
+    const { uiConfig } = useUiConfig();
+    const apiUrl = buildSdkApiUrl(uiConfig.unleashUrl, sdkName);
+
     const wrappedSnippet = buildFlagUsageSnippet(
         codeRenderSnippets[sdkName] || '',
         feature,
+        apiUrl,
     );
 
     return (
-        <StyledDialog open={open} onClose={onClose}>
-            <Container>
-                <Content>
-                    <Header>
-                        <Typography variant='body1' fontWeight='bold'>
-                            Use the flag in your code
-                        </Typography>
-                    </Header>
-                    <Body>
-                        <Select
-                            value={sdkName}
-                            onChange={(event) =>
-                                setSdkName(event.target.value as SdkName)
-                            }
-                            size='small'
-                            sx={{ maxWidth: 240 }}
+        <Container>
+            <Content>
+                <Header>
+                    <Typography variant='body1' fontWeight='bold'>
+                        Use the flag in your code
+                    </Typography>
+                </Header>
+                <Body>
+                    <Select
+                        value={sdkName}
+                        onChange={(event) =>
+                            setSdkName(event.target.value as SdkName)
+                        }
+                        size='small'
+                        sx={{ maxWidth: 240 }}
+                    >
+                        {allSdks.map((sdk) => (
+                            <MenuItem key={sdk.name} value={sdk.name}>
+                                {sdk.name}
+                            </MenuItem>
+                        ))}
+                    </Select>
+
+                    <Box>
+                        <Typography
+                            variant='body2'
+                            fontWeight='bold'
+                            sx={{ mb: 1 }}
                         >
-                            {allSdks.map((sdk) => (
-                                <MenuItem key={sdk.name} value={sdk.name}>
-                                    {sdk.name}
-                                </MenuItem>
-                            ))}
-                        </Select>
+                            Code example
+                        </Typography>
+                        <CodeBlockWrapper>
+                            <Markdown components={{ code: CodeRenderer }}>
+                                {wrappedSnippet}
+                            </Markdown>
+                        </CodeBlockWrapper>
+                    </Box>
 
-                        <Box>
-                            <Typography
-                                variant='body2'
-                                fontWeight='bold'
-                                sx={{ mb: 1 }}
-                            >
-                                Code example
-                            </Typography>
-                            <CodeBlockWrapper>
-                                <Markdown components={{ code: CodeRenderer }}>
-                                    {wrappedSnippet}
-                                </Markdown>
-                            </CodeBlockWrapper>
-                        </Box>
-
-                        <Box>
-                            <Typography
-                                variant='body1'
-                                fontWeight='bold'
-                                sx={{ mb: 1 }}
-                            >
-                                Test flag
-                            </Typography>
-                            <ListeningCard>
-                                <ListeningIcon>
-                                    <span />
-                                    <span />
-                                    <span />
-                                </ListeningIcon>
-                                <ListeningText>
-                                    <Typography
-                                        variant='body2'
-                                        fontWeight='bold'
-                                        color='primary'
-                                    >
-                                        Listening for the first evaluation…
-                                    </Typography>
-                                    <Typography
-                                        variant='caption'
-                                        color='primary'
-                                    >
-                                        Render the code path above anywhere to
-                                        check that we receive metric
-                                        evaluations.
-                                    </Typography>
-                                </ListeningText>
-                            </ListeningCard>
-                        </Box>
-                    </Body>
-                    <Footer>
-                        <WaitingIndicator>
-                            <WaitingDot />
-                            <Typography variant='body2' color='warning.main'>
-                                Waiting for evaluations
-                            </Typography>
-                        </WaitingIndicator>
-                        <Button variant='contained' disabled>
-                            Finish setup
-                        </Button>
-                    </Footer>
-                </Content>
-                {isLargeScreen && (
-                    <ImplementFlagInformation onClose={onClose} />
-                )}
-            </Container>
-        </StyledDialog>
+                    <Box>
+                        <Typography
+                            variant='body1'
+                            fontWeight='bold'
+                            sx={{ mb: 1 }}
+                        >
+                            Test flag
+                        </Typography>
+                        <ListeningStatus evaluated={evaluated} />
+                    </Box>
+                </Body>
+                <Footer>
+                    <StatusIndicator>
+                        <StatusDot connected={evaluated} />
+                        <Typography
+                            variant='body2'
+                            color={evaluated ? 'success.main' : 'warning.main'}
+                        >
+                            {evaluated
+                                ? 'Connected'
+                                : 'Waiting for evaluations'}
+                        </Typography>
+                    </StatusIndicator>
+                    <Button
+                        variant='contained'
+                        disabled={!evaluated}
+                        onClick={onClose}
+                    >
+                        Finish setup
+                    </Button>
+                </Footer>
+            </Content>
+            {isLargeScreen && <ImplementFlagInformation onClose={onClose} />}
+        </Container>
     );
 };
