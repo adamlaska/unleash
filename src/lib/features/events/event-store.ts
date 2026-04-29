@@ -266,6 +266,7 @@ export class EventStore implements IEventStore {
 
     async getDeltaRevisionState(
         environment: string,
+        referencedSegmentIds: Set<number> | undefined = undefined,
     ): Promise<EnvironmentVisibleRevisionState> {
         const stopTimer = this.metricTimer('getDeltaRevisionState');
         const shouldFilterEnvironment = environment !== ALL_ENVS;
@@ -314,15 +315,20 @@ export class EventStore implements IEventStore {
             .modify(applyEnvironmentFilter)
             .groupByRaw(`data->>'oldProject'`);
 
-        const segmentRow: { revisionId?: number | string } | undefined =
-            await this.db(TABLE)
-                .max({ revisionId: 'id' })
-                .where({ type: SEGMENT_UPDATED })
-                .first();
+        const segmentRows: Array<{
+            segmentId?: number | string;
+            revisionId?: number | string;
+        }> = await this.db(TABLE)
+            .select(this.db.raw(`(data->>'id')::int as "segmentId"`))
+            .max({ revisionId: 'id' })
+            .where({ type: SEGMENT_UPDATED })
+            .modify(applyEnvironmentFilter)
+            .groupByRaw(`(data->>'id')::int`);
 
         stopTimer();
 
         const projectRevisions = new Map<string, number>();
+        const segmentRevisions = new Map<number, number>();
 
         for (const row of [...projectRows, ...movedRows]) {
             if (!row.project) {
@@ -337,9 +343,36 @@ export class EventStore implements IEventStore {
             }
         }
 
+        for (const row of segmentRows) {
+            const segmentId = Number(row.segmentId);
+            if (!segmentId) {
+                continue;
+            }
+
+            segmentRevisions.set(segmentId, Number(row.revisionId ?? 0));
+        }
+
+        let maxReferencedSegmentRevision = 0;
+        if (referencedSegmentIds === undefined) {
+            for (const revisionId of segmentRevisions.values()) {
+                maxReferencedSegmentRevision = Math.max(
+                    maxReferencedSegmentRevision,
+                    revisionId,
+                );
+            }
+        } else {
+            for (const segmentId of referencedSegmentIds) {
+                maxReferencedSegmentRevision = Math.max(
+                    maxReferencedSegmentRevision,
+                    segmentRevisions.get(segmentId) ?? 0,
+                );
+            }
+        }
+
         return {
             projectRevisions,
-            globalSegmentRevision: Number(segmentRow?.revisionId ?? 0),
+            maxReferencedSegmentRevision,
+            segmentRevisions,
         };
     }
 
